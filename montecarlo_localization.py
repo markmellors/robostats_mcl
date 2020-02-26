@@ -355,12 +355,16 @@ class robot_particle():
         log_delta_theta = new_log_pose[2] - self.prev_log_pose[2]
         # Fwd motion in log frame == Fwd motion in particle framea
         fwd_motion = math.sqrt(log_delta_x**2 + log_delta_y**2)
+        motion_heading = math.atan2(log_delta_y, log_delta_x)
+        
         # Calculate and add stochastic theta and forward error
         new_theta_error = log_delta_theta * self.sigma_theta_pct * np.random.normal()
         new_current_theta = self.pose[2] + log_delta_theta + new_theta_error
         # Wrap radians to enforce range 0 to 2pi
         new_current_theta = new_current_theta % (2*np.pi)
-
+        heading_vs_direction_angle = abs(motion_heading-new_current_theta+np.pi) % (2*np.pi)-np.pi
+        if (abs(heading_vs_direction_angle) > (np.pi/2)):
+            fwd_motion = -fwd_motion
         fwd_motion_error = fwd_motion * self.sigma_fwd_pct * np.random.normal()
         fwd_motion += fwd_motion_error
         new_current_x = self.pose[0] + fwd_motion * np.cos(new_current_theta)

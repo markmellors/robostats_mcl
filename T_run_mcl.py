@@ -6,7 +6,6 @@ import montecarlo_localization as mcl
 import os, sys
 
 def main(filename='./mcl_test_arena.mp4'):
-    
     np.random.seed(5)
     loaded_map = mcl.occupancy_map('data/map/test_arena.dat')
     logdata = mcl.load_T_log('data/log/data_2020-02-22_19-55-08_998399.log')
@@ -39,6 +38,7 @@ class ParticleMap(object):
         self.i = 1
         self.target_particles = target_particles
         self.resample_period = resample_period
+        self.average_path = []
 
     def update(self, message):
         if self.i % self.resample_period == 0:# Resample and plot state
@@ -50,6 +50,10 @@ class ParticleMap(object):
                 sum_x += p.pose[0]
                 sum_y += p.pose[1]
             average_particle = [sum_x/len(self.particle_list), sum_y/len(self.particle_list), message[5]]
+            self.average_path.append(average_particle)
+            cx = [row[0] for row in self.average_path]
+            cy = [row[1] for row in self.average_path]
+            self.ax.plot(cx, cy,"-k")
             mcl.draw_map_state(self.global_map, self.particle_list, self.ax, draw_max=self.draw_max)
             mcl.plot_particle(average_particle, self.ax, pass_pose=True, color='r')
             #print(pd.Series([p.weight for p in self.particle_list]).describe())
