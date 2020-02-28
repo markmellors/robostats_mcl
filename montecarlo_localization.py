@@ -250,7 +250,7 @@ class robot_particle():
 
         valid_pose = False
         while not valid_pose:
-            if len(self.initial_pose)==3:
+            if self.initial_pose is not None:
                 initial_error_factor = 100
                 x_initial, y_initial, theta_initial = self.initial_pose
                 x_initial += initial_error_factor * self.sigma_fwd_pct * np.random.normal()
