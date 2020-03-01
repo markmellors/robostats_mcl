@@ -252,8 +252,11 @@ class robot_particle():
 
         valid_pose = False
         while not valid_pose:
-            if self.initial_pose:
+            if self.initial_pose is not None:
+                initial_error_factor = 100
                 x_initial, y_initial, theta_initial = self.initial_pose
+                x_initial += initial_error_factor * self.sigma_fwd_pct * np.random.normal()
+                y_initial += initial_error_factor * self.sigma_fwd_pct * np.random.normal()
             else:
                 x_max, y_max = self.global_map.values.shape
                 theta_initial = np.random.uniform(-2 * np.pi,2 * np.pi)

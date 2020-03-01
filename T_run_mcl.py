@@ -13,8 +13,12 @@ def main(filename='./mcl_test_arena.mp4'):
     logdata_scans = logdata.query('type > 0.1').values
     #Initialize 100 particles uniformly in valid locations on the map
     laser = mcl.laser_sensor(stdv_cm=2, uniform_weight=0.2)
+    x_initial = 200
+    y_initial = 200
+    theta_initial = 0
+    start_pose = np.array([x_initial, y_initial, theta_initial])
     particle_list = [mcl.robot_particle(loaded_map, laser, log_prob_descale=2000,
-                                        sigma_fwd_pct=0.8, sigma_theta_pct=0.02)
+                                        sigma_fwd_pct=0.8, sigma_theta_pct=0.02, initial_pose=start_pose)
                      for _ in range(1000)]
 
     fig, ax = plt.subplots(figsize=(16,9))
