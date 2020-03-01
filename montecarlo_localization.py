@@ -139,21 +139,21 @@ class occupancy_map():
 
     def ranges(self, x_cm, y_cm, theta_rads):
         x_max, y_max = self.values.shape
-        x_loc = int(min(x_cm//self.resolution, x_max))
-        y_loc = int(min(y_cm//self.resolution, y_max))
-        return self.range_array[x_loc,y_loc,rads_to_bucket_id(theta_rads)]
+        x_loc = int(min(x_cm // self.resolution, x_max))
+        y_loc = int(min(y_cm // self.resolution, y_max))
+        return self.range_array[x_loc, y_loc,rads_to_bucket_id(theta_rads)]
 
     def ranges_180(self, x_cm, y_cm, theta_rads, n_buckets=120):
         x_max, y_max = self.values.shape
-        x_loc = int(min(x_cm//self.resolution, x_max-1))
-        y_loc = int(min(y_cm//self.resolution, y_max-1))
+        x_loc = int(min(x_cm // self.resolution, x_max - 1))
+        y_loc = int(min(y_cm // self.resolution, y_max - 1))
         bucket_id_list_a, bucket_id_list_b =  theta_to_bucket_ids(theta_rads, n_buckets=n_buckets)
 
         if len(bucket_id_list_b) == 0: #Just return continuous array
-            return self.range_array[x_loc,y_loc,bucket_id_list_a[0]:bucket_id_list_a[-1]+1]
+            return self.range_array[x_loc, y_loc,bucket_id_list_a[0]:bucket_id_list_a[-1] + 1]
         else: # Need to stick together two arrays
-            arrayA = self.range_array[x_loc,y_loc,bucket_id_list_a[0]:bucket_id_list_a[-1]+1]
-            arrayB = self.range_array[x_loc,y_loc,bucket_id_list_b[0]:bucket_id_list_b[-1]+1]
+            arrayA = self.range_array[x_loc, y_loc,bucket_id_list_a[0]:bucket_id_list_a[-1] + 1]
+            arrayB = self.range_array[x_loc, y_loc,bucket_id_list_b[0]:bucket_id_list_b[-1] + 1]
             return np.concatenate([arrayA, arrayB])
 
 class values_only_occupancy_map():
@@ -163,23 +163,23 @@ class values_only_occupancy_map():
 
     def load_map(self):
         gmap = pd.read_csv(self.map_filename, sep=' ', header=None, skiprows=1)
-        map_parameters = pd.read_csv(self.map_filename, sep=' ', header=None,nrows=1)
+        map_parameters = pd.read_csv(self.map_filename, sep=' ', header=None, nrows=1)
         self.resolution = map_parameters[0][0]
         self.values = gmap.values
 
 
 def rads_to_bucket_id(rads, n_buckets=120):
-    return int(((rads / (2*np.pi)) * n_buckets) % n_buckets)
+    return int(((rads / (2 * np.pi)) * n_buckets) % n_buckets)
 
 def theta_to_bucket_ids(theta_rads, n_buckets=120):
     """Returns the bucket ids corresponding to
     -90 deg. to +90 deg around robot heading.
     All parametrs use radians."""
-    start_theta = theta_rads - np.pi/2
+    start_theta = theta_rads - np.pi / 2
     start_bucket_id = rads_to_bucket_id(start_theta)
     bucket_id_list_a = []
     bucket_id_list_b = []
-    for i in range(n_buckets//2):
+    for i in range(n_buckets // 2):
         idx = i + start_bucket_id
         if idx < n_buckets:
             bucket_id_list_a.append(idx)
@@ -203,13 +203,13 @@ class laser_sensor():
         # Create scaling factor for total probabilities
         perfect_match_probs = self.measurement_probabilities(np.array(list(range(10))),
                                                               np.array(list(range(10))))
-        self.measurement_prob_scaling_factor = 1/perfect_match_probs[0]
+        self.measurement_prob_scaling_factor = 1 / perfect_match_probs[0]
         pass
 
     def measurement_probabilities(self, sampled_measurements, expected_measurements):
         squared_diff_array = (sampled_measurements - expected_measurements) ** 2
         # Bring probability constant into exp term:  ae^x = e^(x + log(a))
-        prob_normal_array = (1/(np.sqrt(2*np.pi*self.stdv_cm)) *
+        prob_normal_array = (1 / (np.sqrt(2 * np.pi * self.stdv_cm)) *
                              np.exp((-1 / (2 * self.stdv_cm)) * squared_diff_array))
 
         weighted_probs = (self.normal_weight * prob_normal_array +
@@ -256,7 +256,7 @@ class robot_particle():
                 x_initial, y_initial, theta_initial = self.initial_pose
             else:
                 x_max, y_max = self.global_map.values.shape
-                theta_initial = np.random.uniform(-2*np.pi,2*np.pi)
+                theta_initial = np.random.uniform(-2 * np.pi,2 * np.pi)
                 x_initial = np.random.uniform(0, x_max * self.global_map.resolution)
                 y_initial = np.random.uniform(0, y_max * self.global_map.resolution)
             self.pose = np.array([x_initial, y_initial, theta_initial])
@@ -266,12 +266,12 @@ class robot_particle():
         """Returns a new particle weight
         High if actual measurement matches model"""
         #TODO: Implemente real weighting
-        msg_range_indicies = list(range(8,188))
+        msg_range_indicies = list(range(8, 188))
         actual_measurement = laser_msg[msg_range_indicies]
         subsampled_measurements = actual_measurement[::3] # sample 3-degree increments
         # Laser located 25cm ahead of robot center (in x direction)
-        laser_pose_x = self.pose[0] + 25*np.cos(self.pose[2])
-        laser_pose_y = self.pose[1] + 25*np.sin(self.pose[2])
+        laser_pose_x = self.pose[0] + 25 * np.cos(self.pose[2])
+        laser_pose_y = self.pose[1] + 25 * np.sin(self.pose[2])
         #Expected measurements in 60 3-degree buckets, covering -90 to 90 degrees
         expected_measurements = self.global_map.ranges_180(laser_pose_x, laser_pose_y, self.pose[2])
 
@@ -287,9 +287,9 @@ class robot_particle():
         """Returns a new particle weight
         High if actual measurement matches model"""
         #TODO: Implemente real weighting
-        msg_range_indicies = list(range(8,16))
+        msg_range_indicies = list(range(8, 16))
         actual_measurement = laser_msg[msg_range_indicies]
-        expected_measurements = [0,0,0,0,0,0,0,0]
+        expected_measurements = [0, 0, 0, 0, 0, 0, 0, 0]
 
         sensor_offsets = [[9.12, 2.42, 45],
             [8.23, 3.69, 77.5],
@@ -327,18 +327,20 @@ class robot_particle():
         self.prev_log_pose = msg_pose # Save previous log pose for delta
         return self.pose
 
-    def new_pose_from_sample_error(self, scale=10, constrainedPose=[0,0,0]):
+    def new_pose_from_sample_error(self, scale=10, constrained_pose=None):
         """Simply perterbs current position"""
         # Calculate and add stochastic theta and forward error
+        if constrained_pose is None:
+            constrained_pose = [0, 0, 0]
         valid_pose=False
-        max_theta = constrainedPose[2]+self.max_theta_error
-        min_theta = constrainedPose[2]-self.max_theta_error
-        
+        max_theta = constrained_pose[2] + self.max_theta_error
+        min_theta = constrained_pose[2] - self.max_theta_error
+
         while not valid_pose:
-            new_theta_error = (scale/5) * self.sigma_theta_pct * np.random.normal()
-            new_current_theta = min(max(self.pose[2] + new_theta_error,min_theta),max_theta)
+            new_theta_error = (scale / 5) * self.sigma_theta_pct * np.random.normal()
+            new_current_theta = min(max(self.pose[2] + new_theta_error,min_theta), max_theta)
             # Wrap radians to enforce range 0 to 2pi
-            new_current_theta = new_current_theta % (2*np.pi)
+            new_current_theta = new_current_theta % (2 * np.pi)
 
             new_current_x = self.pose[0] + scale * self.sigma_fwd_pct * np.random.normal()
             new_current_y = self.pose[1] + scale * self.sigma_fwd_pct * np.random.normal()
@@ -354,12 +356,12 @@ class robot_particle():
         log_delta_y = new_log_pose[1] - self.prev_log_pose[1]
         log_delta_theta = new_log_pose[2] - self.prev_log_pose[2]
         # Fwd motion in log frame == Fwd motion in particle framea
-        fwd_motion = math.sqrt(log_delta_x**2 + log_delta_y**2)
+        fwd_motion = math.sqrt(log_delta_x ** 2 + log_delta_y ** 2)
         # Calculate and add stochastic theta and forward error
         new_theta_error = log_delta_theta * self.sigma_theta_pct * np.random.normal()
         new_current_theta = self.pose[2] + log_delta_theta + new_theta_error
         # Wrap radians to enforce range 0 to 2pi
-        new_current_theta = new_current_theta % (2*np.pi)
+        new_current_theta = new_current_theta % (2 * np.pi)
 
         fwd_motion_error = fwd_motion * self.sigma_fwd_pct * np.random.normal()
         fwd_motion += fwd_motion_error
@@ -369,8 +371,8 @@ class robot_particle():
         return self.pose
 
     def position_valid(self):
-        nearest_xindex = int(self.pose[0]//self.global_map.resolution)
-        nearest_yindex = int(self.pose[1]//self.global_map.resolution)
+        nearest_xindex = int(self.pose[0] // self.global_map.resolution)
+        nearest_yindex = int(self.pose[1] // self.global_map.resolution)
         nearest_xindex = max(nearest_xindex, 0)
         nearest_yindex = max(nearest_yindex, 0)
         try:
@@ -395,9 +397,9 @@ def raycast_bresenham(x_cm, y_cm, theta, global_map,
 
      # Cast rays within 800x800 map (10cm * 800 X 10cm * 800)
      res = global_map.resolution
-     x = int(x_cm//res)
-     y = int(y_cm//res)
-     max_dist = max_dist_cm//res
+     x = int(x_cm // res)
+     y = int(y_cm // res)
+     max_dist = max_dist_cm // res
 
      #TODO: Implement with x,y in range 0~800 - will be much faster.
 
@@ -407,7 +409,7 @@ def raycast_bresenham(x_cm, y_cm, theta, global_map,
      y2 = y + int(max_dist * np.sin(theta))
      # Short-circuit if inside wall
      if global_map.values[x,y] < freespace_min_val :
-        return x*res, y*res, 0
+        return x * res, y * res, 0
      steep = 0
      #coords = []
      dx = abs(x2 - x)
@@ -426,26 +428,26 @@ def raycast_bresenham(x_cm, y_cm, theta, global_map,
          for _ in range(0, dx):
              if steep: # X and Y have been swapped  #coords.append((y,x))
                 if global_map.values[y, x] < freespace_min_val:
-                    dist = np.sqrt((y - x0)**2 + (x - y0)**2)
-                    return y*res, x*res, min(dist, max_dist)*res
+                    dist = np.sqrt((y - x0) ** 2 + (x - y0) ** 2)
+                    return y * res, x * res, min(dist, max_dist) * res
              else: #coords.append((x,y))
                 if global_map.values[x, y] < freespace_min_val:
-                    dist = np.sqrt((x - x0)**2 + (y - y0)**2)
-                    return x*res, y*res, min(dist, max_dist)*res
+                    dist = np.sqrt((x - x0) ** 2 + (y - y0) ** 2)
+                    return x * res, y * res, min(dist, max_dist) * res
              while d >= 0:
                  y = y + sy
                  d = d - (2 * dx)
              x = x + sx
              d = d + (2 * dy)
          if steep:
-             dist = np.sqrt((y - x0)**2 + (x - y0)**2)
-             return y*res, x*res, min(dist, max_dist)*res
+             dist = np.sqrt((y - x0) ** 2 + (x - y0) ** 2)
+             return y * res, x * res, min(dist, max_dist) * res
          else:
-             dist = np.sqrt((x - x0)**2 + (y - y0)**2)
-             return x*res, y*res, min(dist, max_dist)*res
+             dist = np.sqrt((x - x0) ** 2 + (y - y0) ** 2)
+             return x*res, y*res, min(dist, max_dist) * res
      except IndexError: # Out of range
-        dist = np.sqrt((y - x0)**2 + (x - y0)**2)
-        return y*res, x*res, min(dist, max_dist)*res
+        dist = np.sqrt((y - x0) ** 2 + (x - y0) ** 2)
+        return y*res, x*res, min(dist, max_dist) * res
 
 
 
@@ -578,8 +580,8 @@ def plot_particle(particle, ax=None, pass_pose=False, color='b'):
     # 25cm is distance to actual sensor
     direction_arrow_length = 5
     bot_centre_circle_size = 4
-    xt = x + direction_arrow_length*np.cos(theta)
-    yt = y + direction_arrow_length*np.sin(theta)
+    xt = x + direction_arrow_length * np.cos(theta)
+    yt = y + direction_arrow_length * np.sin(theta)
     circle = patches.CirclePolygon((x,y),facecolor='none', edgecolor=color,
                                    radius=bot_centre_circle_size, resolution=20)
     ax.add_artist(circle)
