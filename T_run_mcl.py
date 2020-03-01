@@ -6,7 +6,7 @@ import montecarlo_localization as mcl
 import os, sys
 
 def main(filename='./mcl_test_arena.mp4'):
-    
+
     np.random.seed(5)
     loaded_map = mcl.occupancy_map('data/map/test_arena.dat')
     logdata = mcl.load_T_log('data/log/data_2020-02-22_19-55-08_998399.log')
@@ -45,22 +45,22 @@ class ParticleMap(object):
             self.particle_list = mcl.mcl_update(self.particle_list, message, resample=True,
                                                 target_particles=self.target_particles) # Update
             plt.cla()
-            sum_x = sum_y = 0
-            for p in self.particle_list:
-                sum_x += p.pose[0]
-                sum_y += p.pose[1]
-            average_particle = [sum_x/len(self.particle_list), sum_y/len(self.particle_list), message[5]]
+
+            poses = np.vectorize(lambda p: (p.pose[0], p.pose[1]))(self.particle_list)
+            avg_x = np.mean(poses[0])
+            avg_y = np.mean(poses[1])
+            average_particle = [avg_x, avg_y, message[5]]
+
             mcl.draw_map_state(self.global_map, self.particle_list, self.ax, draw_max=self.draw_max)
             mcl.plot_particle(average_particle, self.ax, pass_pose=True, color='r')
             #print(pd.Series([p.weight for p in self.particle_list]).describe())
         else: # Just update particle weights / locations - do not resample
-            self.particle_list = mcl.mcl_update(self.particle_list, message, 
+            self.particle_list = mcl.mcl_update(self.particle_list, message,
                                                 target_particles=self.target_particles) # Update
         self.i += 1
-        print(self.i, end='\r') 
+        print(self.i, end='\r')
         sys.stdout.flush()
 
 if __name__ == "__main__":
     main()
 
-    
