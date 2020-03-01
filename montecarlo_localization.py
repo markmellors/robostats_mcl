@@ -363,7 +363,7 @@ class robot_particle():
         # Wrap radians to enforce range 0 to 2pi
         new_current_theta = new_current_theta % (2*np.pi)
         heading_vs_direction_angle = abs(motion_heading-new_current_theta+np.pi) % (2*np.pi)-np.pi
-        if (abs(heading_vs_direction_angle) > (np.pi/2)):
+        if abs(heading_vs_direction_angle) > (np.pi / 2):
             fwd_motion = -fwd_motion
         fwd_motion_error = fwd_motion * self.sigma_fwd_pct * np.random.normal()
         fwd_motion += fwd_motion_error
