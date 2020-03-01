@@ -40,12 +40,13 @@ def mcl_update(particle_list, msg, target_particles=300,
                new_particles_per_round=0, resample=True):
     # msg: ['type','ts', 'x', 'y', 'theta', 'xl','yl', 'thetal', r1~r180]
     # 'type' is 1.0 for laser scan, 0.0 for odometry-only
+    msg_pose = msg[2:5] # three elements: x, y, theta
 
     # FIRST: Update locations and weights of particles
     valid_particles = []
     for particle in particle_list:
         # Update location
-        particle.sample_motion(msg)
+        particle.sample_motion(msg_pose)
         if particle.position_valid():
             valid_particles.append(particle)
 
@@ -60,7 +61,7 @@ def mcl_update(particle_list, msg, target_particles=300,
         if sum(particle_list_weights) < 0.01:
             renormalize_particle_weights(valid_particles)
 
-        new_particle_list = sample_list_by_weight(valid_particles, particle_list_weights,
+        new_particle_list = sample_list_by_weight(valid_particles, particle_list_weights, msg_pose,
                                                   max_target_particles=target_particles)
         if new_particles_per_round > 0:
             # Add a few new particles with average weights
@@ -94,7 +95,7 @@ def renormalize_particle_weights(particle_list):
         p.weight = p.weight * (1 / total_weight)
 
 
-def sample_list_by_weight(list_to_sample, list_element_weights, randomize_order=True,
+def sample_list_by_weight(list_to_sample, list_element_weights, odometry_pose, randomize_order=True,
                           perturb=True, max_target_particles=10000):
     """Samples new particles with probability proportional to their weight.
         If current particle count is above max_target_particles,
@@ -115,7 +116,7 @@ def sample_list_by_weight(list_to_sample, list_element_weights, randomize_order=
                 # Need to add copies to new list, not just identical references!
                 new_particle = copy.copy(list_to_sample[idx])
                 if perturb:
-                    new_particle.new_pose_from_sample_error(10)
+                    new_particle.new_pose_from_sample_error(10, odometry_pose)
                 new_sampled_list.append(new_particle)
             count -= 1
     if randomize_order:   # Not required, but nice for random order
@@ -226,7 +227,7 @@ class robot_particle():
 
     def __init__(self, global_map, laser_sensor,
                  sigma_fwd_pct=.2, sigma_theta_pct=.05,
-                 log_prob_descale=60, initial_pose=None):
+                 log_prob_descale=60, initial_pose=None, max_theta_error=0.1):
         """sigma_[x,y,theta]_pct  represents stddev of movement over 1 unit as percentage
             e.g., if true movement in X = 20cm, and sigma_x_pct=.1, then stddev = 2cm
             log_prob_descale affects magnitude of snesor updates:
@@ -240,6 +241,7 @@ class robot_particle():
         self.sigma_theta_pct = sigma_theta_pct
         self.log_prob_descale = log_prob_descale
         self.initial_pose = initial_pose
+        self.max_theta_error = max_theta_error
         self.init_pose()
 
     def init_pose(self):
@@ -313,10 +315,9 @@ class robot_particle():
         self.weight = self.weight * np.exp(single_scan_log_prob / self.log_prob_descale) # Reduce by e^100
         return np.exp(single_scan_log_prob)
 
-    def sample_motion(self, msg):
+    def sample_motion(self, msg_pose):
         """Returns a new (sampled) x,y position for next timestep"""
-        # msg: ['type','ts', 'x', 'y', 'theta', 'xl','yl', 'thetal', r1~r180]
-        msg_pose = msg[2:5] # three elements: x, y, theta
+
         if self.prev_log_pose is None: # First iteration
             self.prev_log_pose = msg_pose
 
@@ -326,13 +327,16 @@ class robot_particle():
         self.prev_log_pose = msg_pose # Save previous log pose for delta
         return self.pose
 
-    def new_pose_from_sample_error(self, scale=10):
+    def new_pose_from_sample_error(self, scale=10, constrainedPose=[0,0,0]):
         """Simply perterbs current position"""
         # Calculate and add stochastic theta and forward error
         valid_pose=False
+        max_theta = constrainedPose[2]+self.max_theta_error
+        min_theta = constrainedPose[2]-self.max_theta_error
+        
         while not valid_pose:
             new_theta_error = (scale/5) * self.sigma_theta_pct * np.random.normal()
-            new_current_theta = self.pose[2] + new_theta_error
+            new_current_theta = min(max(self.pose[2] + new_theta_error,min_theta),max_theta)
             # Wrap radians to enforce range 0 to 2pi
             new_current_theta = new_current_theta % (2*np.pi)
 
@@ -351,12 +355,16 @@ class robot_particle():
         log_delta_theta = new_log_pose[2] - self.prev_log_pose[2]
         # Fwd motion in log frame == Fwd motion in particle framea
         fwd_motion = math.sqrt(log_delta_x**2 + log_delta_y**2)
+        motion_heading = math.atan2(log_delta_y, log_delta_x)
+        
         # Calculate and add stochastic theta and forward error
         new_theta_error = log_delta_theta * self.sigma_theta_pct * np.random.normal()
         new_current_theta = self.pose[2] + log_delta_theta + new_theta_error
         # Wrap radians to enforce range 0 to 2pi
         new_current_theta = new_current_theta % (2*np.pi)
-
+        heading_vs_direction_angle = abs(motion_heading-new_current_theta+np.pi) % (2*np.pi)-np.pi
+        if abs(heading_vs_direction_angle) > (np.pi / 2):
+            fwd_motion = -fwd_motion
         fwd_motion_error = fwd_motion * self.sigma_fwd_pct * np.random.normal()
         fwd_motion += fwd_motion_error
         new_current_x = self.pose[0] + fwd_motion * np.cos(new_current_theta)
