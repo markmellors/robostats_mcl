@@ -9,7 +9,7 @@ def main(filename='./mcl_test_arena.mp4'):
     
     np.random.seed(5)
     loaded_map = mcl.occupancy_map('data/map/test_arena.dat')
-    logdata = mcl.load_T_log('data/log/test_arena.dat')
+    logdata = mcl.load_T_log('data/log/data_2020-02-22_19-55-08_998399.log')
     logdata_scans = logdata.query('type > 0.1').values
     #Initialize 100 particles uniformly in valid locations on the map
     laser = mcl.laser_sensor(stdv_cm=2, uniform_weight=0.2)
